@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChudBot | Hub</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-area">
+                <h1>ChudBot Hub</h1>
+                <p>Hogeschool Utrecht • Live Dashboard</p>
+            </div>
+            <div class="date-display">
+                <span id="current-date"></span>
+            </div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon icon-blue">
+                    📅
+                </div>
+                <div class="stat-info">
+                    <h3>Vandaag</h3>
+                    <div class="stat-value">{{ today_count }} Events</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon icon-orange">
+                    🏆
+                </div>
+                <div class="stat-info">
+                    <h3>Puntentotaal</h3>
+                    <div class="stat-value">{{ total_points }} <span style="font-size: 1rem; color: var(--text-dim)">Beschikbaar</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <main class="main-content">
+                <div class="section-header">
+                    <h2>Rooster komende 7 dagen</h2>
+                    <div class="filter-wrapper">
+                        <label for="subject-filter" style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700;">FILTER:</label>
+                        <select id="subject-filter" class="subject-filter">
+                            <option value="all">Alle Vakken</option>
+                            {% for subject in subjects %}
+                            <option value="{{ subject|lower }}">{{ subject }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="timeline" id="event-timeline">
+                    {% if events %}
+                        {% for event in events %}
+                        <div class="event-card" data-subject="{{ event.subject|lower }}">
+                            <div class="event-time">
+                                {{ event.time }}
+                            </div>
+                            <div class="event-details">
+                                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+                                    <span class="subject-tag tag-{{ event.subject|lower }}">{{ event.subject }}</span>
+                                    <h4>{{ event.clean_title }}</h4>
+                                </div>
+                                <div class="event-meta">
+                                    <span>📍 {{ event.location }}</span>
+                                    {% if event.points > 0 %}
+                                    <span class="points-pill">🏆 {{ event.points }} pts</span>
+                                    {% endif %}
+                                    <span>📅 {{ event.date }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="color: var(--text-dim); text-align: center; padding: 2rem;">Helemaal vrij! Geen lessen gepland.</p>
+                    {% endif %}
+                </div>
+            </main>
+
+            <aside class="sidebar">
+                <div class="section-header">
+                    <h2>Deadlines</h2>
+                </div>
+
+                <div class="deadline-list">
+                    {% if assignments %}
+                        {% for task in assignments %}
+                        <div class="deadline-item {{ 'urgent' if 'Nog 1d' in task.days_left or 'Nog 0d' in task.days_left else '' }}">
+                            <div class="deadline-top">
+                                <span class="deadline-name">{{ task.clean_title }}</span>
+                                <span class="deadline-days">{{ task.days_left }}</span>
+                            </div>
+                            <div class="deadline-bottom">
+                                <span>{{ task.date }}</span>
+                                <span class="points-pill">+{{ task.points }} pts</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="color: var(--text-dim); font-size: 0.875rem;">Geen deadlines in zicht. Lekker bezig!</p>
+                    {% endif %}
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // Current date display
+        const d = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').innerText = d.toLocaleDateString('nl-NL', options);
+
+        // Subject filtering logic
+        const filterSelect = document.getElementById('subject-filter');
+        const eventCards = document.querySelectorAll('.event-card');
+
+        filterSelect.addEventListener('change', (e) => {
+            const selectedSubject = e.target.value;
+            
+            eventCards.forEach(card => {
+                if (selectedSubject === 'all' || card.getAttribute('data-subject') === selectedSubject) {
+                    card.style.display = 'grid';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
