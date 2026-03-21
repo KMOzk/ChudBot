@@ -73,7 +73,7 @@ def clean_event_title(title):
     """Cleans up HU-specific prefixes from event titles."""
     if not title or not isinstance(title, str):
         return "(Geen onderwerp)"
-        
+
     clean_name = title
     prefixes_to_strip = [
         "TICT-V1SE1-24_2025 - Introduction to ICT_Leerlijn",
@@ -142,6 +142,8 @@ def extract_subject(text):
             clean_title = " ".join(words[1:]).strip()
 
     # Consolidate into main groups based on ORIGINAL text or RAW subject
+    # Ensure clean_title is never empty - fall back to original text if needed
+    clean_title = clean_title or text or '(Geen onderwerp)'
     text_upper = text.upper()
     if "PROG" in text_upper or "PROGRAM" in text_upper:
         return "PROG", clean_title
@@ -324,11 +326,11 @@ class ChudBot(commands.Bot):
                 continue
 
             for event in events:
-                summary = event.get('summary') or '(Geen onderwerp)'
+                summary = str(event.get('summary') or '(Geen onderwerp)')
                 summary_upper = summary.upper()
                 # Zorg dat description NOOIT None is om startswith/search errors te voorkomen
-                description = event.get('description') or ''
-                location = event.get('location') or 'Nader te bepalen'
+                description = str(event.get('description') or '')
+                location = str(event.get('location') or 'Nader te bepalen')
                 
                 # Punten alleen boeiend voor persoonlijke agenda
                 points = 0
@@ -337,6 +339,7 @@ class ChudBot(commands.Bot):
 
                 subj, clean_name = extract_subject(summary)
 
+                display_name = '(Geen onderwerp)'
                 if cal["type"] == "class":
                     if "ZELFSTANDIG WERKEN" in summary_upper:
                         reasons["Zelfstandig werken"] += 1
@@ -351,6 +354,9 @@ class ChudBot(commands.Bot):
                         continue
                     location = "Deadline / Opdracht"
                     display_name = f"[{points} pts] {clean_name}" if f"{points}" not in clean_name else clean_name
+
+                # Zorg dat display_name altijd een geldige niet-lege string is
+                display_name = display_name or summary or '(Geen onderwerp)'
 
                 start_raw = event['start'].get('dateTime', event['start'].get('date'))
                 end_raw = event['end'].get('dateTime', event['end'].get('date'))
@@ -560,14 +566,14 @@ class ChudBot(commands.Bot):
         color_map = {}
 
         for event in events:
-            summary = event.get('summary') or '(Geen onderwerp)'
+            summary = str(event.get('summary') or '(Geen onderwerp)')
             summary_upper = summary.upper()
             
             # Skip zelfstandig werken in de weergave
             if "ZELFSTANDIG WERKEN" in summary_upper:
                 continue
                 
-            description = event.get('description') or ''
+            description = str(event.get('description') or '')
             subj, clean_title = extract_subject(summary)
 
             points = extract_points(summary) or extract_points(description)
