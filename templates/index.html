@@ -1,137 +1,329 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html class="dark scroll-smooth" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChudBot | Hub</title>
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>ChudBot Hub - Student Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "outline-variant": "#45484f",
+                        "tertiary-fixed-dim": "#58e7ab",
+                        "on-primary-container": "#002150",
+                        "tertiary-fixed": "#69f6b8",
+                        "background": "#0b0e14",
+                        "surface-container-high": "#1c2028",
+                        "surface-variant": "#22262f",
+                        "surface-container-lowest": "#000000",
+                        "secondary-container": "#5516be",
+                        "surface": "#0b0e14",
+                        "error": "#ff716c",
+                        "primary-container": "#6e9fff",
+                        "secondary": "#ac8aff",
+                        "surface-container-highest": "#22262f",
+                        "on-primary": "#002c66",
+                        "outline": "#73757d",
+                        "on-surface-variant": "#a9abb3",
+                        "primary": "#85adff",
+                        "surface-container-low": "#10131a",
+                        "on-surface": "#ecedf6",
+                        "surface-container": "#161a21",
+                        "tertiary": "#9bffce"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b0e14; color: #ecedf6; }
+        .glass-card {
+            background: rgba(22, 26, 33, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        #sidebar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        #sidebar.collapsed { width: 4.5rem; }
+        #sidebar.collapsed .nav-text, #sidebar.collapsed .sidebar-header { display: none; }
+        #sidebar.collapsed .nav-item { padding-left: 0; justify-content: center; border-radius: 9999px; width: 40px; height: 40px; margin: 4px auto; }
+        #sidebar.collapsed .nav-item span:not(.material-symbols-outlined) { display: none; }
+        #sidebar.collapsed .border-l-4 { border-left-width: 0; }
+        #sidebar.collapsed .px-6 { padding-left: 0.5rem; padding-right: 0.5rem; }
+        #main-content { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* Custom scrollbar for assignment list if it gets too long */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #22262f; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #45484f; }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <div class="logo-area">
-                <h1>ChudBot Hub</h1>
-                <p>Hogeschool Utrecht • Live Dashboard</p>
-            </div>
-            <div class="date-display">
-                <span id="current-date"></span>
-            </div>
-        </header>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon icon-blue">
-                    📅
-                </div>
-                <div class="stat-info">
-                    <h3>Vandaag</h3>
-                    <div class="stat-value">{{ today_count }} Events</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon icon-orange">
-                    🏆
-                </div>
-                <div class="stat-info">
-                    <h3>Puntentotaal</h3>
-                    <div class="stat-value">{{ total_points }} <span style="font-size: 1rem; color: var(--text-dim)">Beschikbaar</span></div>
-                </div>
-            </div>
+<body class="bg-surface text-on-surface selection:bg-primary-container selection:text-on-primary-container overflow-x-hidden">
+    <header class="fixed top-0 left-0 right-0 h-16 flex justify-between items-center px-6 backdrop-blur-xl bg-opacity-60 bg-[#0b0e14] z-50 border-b border-outline-variant/10">
+        <div class="flex items-center gap-6">
+            <button class="p-2 text-on-surface-variant hover:bg-surface-container-highest rounded-lg transition-colors" id="sidebar-toggle">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+            <span class="text-xl font-black text-[#ecedf6] tracking-tighter">ChudBot Hub</span>
+            <nav class="hidden md:flex gap-6 items-center ml-4">
+                <a class="text-[#85adff] border-b-2 border-[#85adff] pb-1 font-bold font-inter tracking-tight text-[0.875rem]" href="#">Dashboard</a>
+                <a class="text-[#a9abb3] hover:text-[#ecedf6] transition-colors font-inter tracking-tight text-[0.875rem]" href="#schedule-section">Schedule</a>
+                <a class="text-[#a9abb3] hover:text-[#ecedf6] transition-colors font-inter tracking-tight text-[0.875rem]" href="#assignments-section">Assignments</a>
+            </nav>
         </div>
+        <div class="flex items-center gap-4">
+            <div class="relative group hidden lg:block">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+                <input class="bg-surface-container-lowest border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary transition-all outline-none" placeholder="Search resources..." type="text"/>
+            </div>
+            <button class="p-2 text-on-surface-variant hover:bg-[#22262f] rounded-full transition-all duration-200 active:scale-90 relative">
+                <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+            </button>
+        </div>
+    </header>
 
-        <div class="dashboard-grid">
-            <main class="main-content">
-                <div class="section-header">
-                    <h2>Rooster komende 7 dagen</h2>
-                    <div class="filter-wrapper">
-                        <label for="subject-filter" style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700;">FILTER:</label>
-                        <select id="subject-filter" class="subject-filter">
-                            <option value="all">Alle Vakken</option>
-                            {% for subject in subjects %}
-                            <option value="{{ subject|lower }}">{{ subject }}</option>
-                            {% endfor %}
-                        </select>
+    <div class="flex min-h-screen pt-16">
+        <aside class="fixed left-0 top-16 h-[calc(100vh-4rem)] flex flex-col py-6 bg-[#10131a] w-64 z-40 border-r border-outline-variant/10 collapsed" id="sidebar">
+            <div class="sidebar-header px-6 mb-8">
+                <h3 class="text-lg font-bold text-[#ecedf6]">Subject Filter</h3>
+                <p class="text-[0.75rem] font-medium text-outline">Academic Focus</p>
+            </div>
+            <nav class="flex-1 flex flex-col gap-1 px-2" id="filter-nav">
+                <a href="#" data-filter="all" class="nav-item filter-btn text-[#85adff] bg-[#161a21]/50 rounded-lg border-l-4 border-[#85adff] py-3 px-4 flex items-center gap-3 transition-all duration-300 ease-in-out font-inter text-[0.75rem] font-medium">
+                    <span class="material-symbols-outlined" data-icon="apps">apps</span>
+                    <span class="nav-text">All Subjects</span>
+                </a>
+                <a href="#" data-filter="csc" class="nav-item filter-btn text-[#73757d] hover:text-[#ecedf6] hover:bg-[#22262f] rounded-lg py-3 px-4 flex items-center gap-3 transition-all duration-300 ease-in-out font-inter text-[0.75rem] font-medium border-l-4 border-transparent">
+                    <span class="material-symbols-outlined" data-icon="code">code</span>
+                    <span class="nav-text">CSC</span>
+                </a>
+                <a href="#" data-filter="mod" class="nav-item filter-btn text-[#73757d] hover:text-[#ecedf6] hover:bg-[#22262f] rounded-lg py-3 px-4 flex items-center gap-3 transition-all duration-300 ease-in-out font-inter text-[0.75rem] font-medium border-l-4 border-transparent">
+                    <span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+                    <span class="nav-text">MOD</span>
+                </a>
+                <a href="#" data-filter="prog" class="nav-item filter-btn text-[#73757d] hover:text-[#ecedf6] hover:bg-[#22262f] rounded-lg py-3 px-4 flex items-center gap-3 transition-all duration-300 ease-in-out font-inter text-[0.75rem] font-medium border-l-4 border-transparent">
+                    <span class="material-symbols-outlined" data-icon="developer_board">developer_board</span>
+                    <span class="nav-text">PROG</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 ml-[4.5rem] p-6 md:p-10 space-y-8 min-w-0" id="main-content">
+            <section class="space-y-6">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <span class="label-sm text-[0.6875rem] uppercase tracking-[0.05em] text-[#a9abb3]">Live Dashboard</span>
+                        <h1 class="text-3xl font-black text-[#ecedf6] tracking-tighter">ChudBot Hub - Hogeschool Utrecht</h1>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="surface-container bg-[#161a21] p-4 rounded-xl border-l-4 border-primary">
+                            <p class="label-sm text-[0.6875rem] uppercase tracking-[0.05em] text-[#a9abb3]">Vandaag</p>
+                            <p class="text-2xl font-black text-primary">{{ today_count }} <span class="text-xs font-normal text-on-surface-variant">Events</span></p>
+                        </div>
+                        <div class="surface-container bg-[#161a21] p-4 rounded-xl border-l-4 border-tertiary">
+                            <p class="label-sm text-[0.6875rem] uppercase tracking-[0.05em] text-[#a9abb3]">Totaal Punten</p>
+                            <p class="text-2xl font-black text-tertiary">{{ total_points }} <span class="text-xs font-normal text-on-surface-variant">Verzameld</span></p>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="timeline" id="event-timeline">
-                    {% if events %}
-                        {% for event in events %}
-                        <div class="event-card" data-subject="{{ event.subject|lower }}">
-                            <div class="event-time">
-                                {{ event.time }}
-                            </div>
-                            <div class="event-details">
-                                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
-                                    <span class="subject-tag tag-{{ event.subject|lower }}">{{ event.subject }}</span>
-                                    <h4>{{ event.clean_title }}</h4>
-                                </div>
-                                <div class="event-meta">
-                                    <span>📍 {{ event.location }}</span>
-                                    {% if event.points > 0 %}
-                                    <span class="points-pill">🏆 {{ event.points }} pts</span>
-                                    {% endif %}
-                                    <span>📅 {{ event.date }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p style="color: var(--text-dim); text-align: center; padding: 2rem;">Helemaal vrij! Geen lessen gepland.</p>
-                    {% endif %}
-                </div>
-            </main>
+            </section>
 
-            <aside class="sidebar">
-                <div class="section-header">
-                    <h2>Deadlines</h2>
-                </div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-                <div class="deadline-list">
-                    {% if assignments %}
-                        {% for task in assignments %}
-                        <div class="deadline-item {{ 'urgent' if 'Nog 1d' in task.days_left or 'Nog 0d' in task.days_left else '' }}">
-                            <div class="deadline-top">
-                                <span class="deadline-name">{{ task.clean_title }}</span>
-                                <span class="deadline-days">{{ task.days_left }}</span>
+                <!-- SCHEDULE SECTION -->
+                <section id="schedule-section" class="lg:col-span-8 space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary">calendar_month</span>
+                        <h2 class="headline-sm text-[1.5rem] font-bold tracking-tight">Rooster komende 7 dagen</h2>
+                    </div>
+
+                    <div class="space-y-4" id="events-container">
+                        {% if events %}
+                            {% for event in events %}
+                                {% if event.points == 0 %}
+                                <div data-subject="{{ event.subject | lower }}" class="filterable-item glass-card rounded-xl p-6 flex items-start gap-6 border-l-4 border-primary hover:translate-x-1 hover:bg-surface-container-highest/40 transition-all duration-200 cursor-pointer group">
+                                    <div class="text-center min-w-[64px] transition-transform group-hover:scale-105">
+                                        <p class="text-xl font-black text-on-surface">{{ event.time }}</p>
+                                        <p class="text-[0.6875rem] uppercase text-outline">{{ event.date }}</p>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="w-2 h-2 rounded-full bg-primary"></span>
+                                            <span class="label-sm text-[0.6875rem] font-bold text-primary tracking-wider uppercase">{{ event.subject }}</span>
+                                        </div>
+                                        <h4 class="text-lg font-bold tracking-tight mb-2 group-hover:text-primary transition-colors">{{ event.clean_title }}</h4>
+                                        <div class="flex items-center gap-4 text-xs text-outline">
+                                            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">location_on</span>{{ event.location }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="p-12 text-center bg-surface-container rounded-2xl border border-outline-variant/10">
+                                <p class="text-outline">Geen lessen gepland voor de komende dagen.</p>
                             </div>
-                            <div class="deadline-bottom">
-                                <span>{{ task.date }}</span>
-                                <span class="points-pill">+{{ task.points }} pts</span>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <!-- ASSIGNMENTS SECTION -->
+                <section id="assignments-section" class="lg:col-span-4 space-y-6 sticky top-24 scroll-mt-24">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-secondary">assignment</span>
+                        <h2 class="headline-sm text-[1.5rem] font-bold tracking-tight">Opdrachten</h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 max-h-[800px] overflow-y-auto custom-scrollbar pr-2" id="assignments-container">
+                        {% if assignments %}
+                            {% for a in assignments %}
+                            <!-- Voeg hidden class toe als het meer dan 4 items zijn -->
+                            <div data-subject="{{ a.subject | lower }}" class="filterable-item assignment-card {% if loop.index > 4 %}hidden-assignment hidden{% endif %} bg-[#161a21] p-6 rounded-xl border border-outline-variant/10 flex-col gap-4 group hover:bg-surface-container-high hover:border-outline-variant/30 hover:-translate-y-1 transition-all duration-200 shadow-sm hover:shadow-lg cursor-pointer flex">
+                                <div class="flex justify-between items-start">
+                                    <span class="px-3 py-1 bg-secondary/10 text-secondary text-[0.625rem] font-black uppercase rounded-full">{{ a.subject }}</span>
+                                    <div class="text-right">
+                                        <p class="text-xl font-black text-secondary">{{ a.points }} <span class="text-xs font-normal">pts</span></p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h5 class="text-md font-bold mb-1 group-hover:text-secondary transition-colors">{{ a.clean_title }}</h5>
+                                    <p class="text-xs text-outline">{{ a.date }}</p>
+                                </div>
+                                <div class="mt-2 pt-4 border-t border-outline-variant/10 flex items-center justify-between">
+                                    <div class="flex items-center gap-2 {% if 'Nog' in a.days_left %}text-tertiary{% else %}text-error{% endif %}">
+                                        <span class="material-symbols-outlined text-sm">schedule</span>
+                                        <span class="text-xs font-bold">{{ a.days_left }}</span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p style="color: var(--text-dim); font-size: 0.875rem;">Geen deadlines in zicht. Lekker bezig!</p>
-                    {% endif %}
-                </div>
-            </aside>
-        </div>
+                            {% endfor %}
+
+                            <!-- Toggle Button -->
+                            {% if assignments|length > 4 %}
+                            <button id="toggle-assignments-btn" class="w-full py-4 rounded-xl border-2 border-dashed border-outline-variant/20 text-outline text-xs font-bold hover:bg-surface-container-high hover:text-on-surface hover:border-outline-variant transition-all mt-2">
+                                Bekijk alle assignments ({{ assignments|length }})
+                            </button>
+                            {% endif %}
+
+                        {% else %}
+                            <div class="p-8 text-center bg-surface-container rounded-xl border border-dashed border-outline-variant/20">
+                                <p class="text-xs text-outline">Geen actieve opdrachten gevonden.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+            </div>
+        </main>
     </div>
 
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-[#10131a] flex justify-around py-3 px-2 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.4)] backdrop-blur-lg border-t border-outline-variant/10">
+        <a class="flex flex-col items-center gap-1 text-primary hover:text-primary-dim transition-colors" href="#">
+            <span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+            <span class="text-[0.625rem] font-bold">Hub</span>
+        </a>
+        <a class="flex flex-col items-center gap-1 text-outline hover:text-primary transition-colors" href="#schedule-section">
+            <span class="material-symbols-outlined" data-icon="calendar_month">calendar_month</span>
+            <span class="text-[0.625rem]">Rooster</span>
+        </a>
+        <a class="flex flex-col items-center gap-1 text-outline hover:text-primary transition-colors" href="#assignments-section">
+            <span class="material-symbols-outlined" data-icon="task">task</span>
+            <span class="text-[0.625rem]">Tasks</span>
+        </a>
+    </nav>
+
     <script>
-        // Current date display
-        const d = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('current-date').innerText = d.toLocaleDateString('nl-NL', options);
+        // Sidebar Toggle Logic
+        const toggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
 
-        // Subject filtering logic
-        const filterSelect = document.getElementById('subject-filter');
-        const eventCards = document.querySelectorAll('.event-card');
-
-        filterSelect.addEventListener('change', (e) => {
-            const selectedSubject = e.target.value;
-            
-            eventCards.forEach(card => {
-                if (selectedSubject === 'all' || card.getAttribute('data-subject') === selectedSubject) {
-                    card.style.display = 'grid';
+        const updateMargin = () => {
+            if (window.innerWidth >= 768) {
+                if (sidebar.classList.contains('collapsed')) {
+                    mainContent.style.marginLeft = '4.5rem';
                 } else {
-                    card.style.display = 'none';
+                    mainContent.style.marginLeft = '16rem';
                 }
+            } else {
+                mainContent.style.marginLeft = '0';
+            }
+        };
+
+        toggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            updateMargin();
+        });
+
+        window.addEventListener('resize', updateMargin);
+        updateMargin();
+
+        // Filtering Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            const items = document.querySelectorAll('.filterable-item');
+
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const filterValue = btn.getAttribute('data-filter');
+
+                    filterBtns.forEach(b => {
+                        b.classList.remove('text-[#85adff]', 'bg-[#161a21]/50', 'border-[#85adff]');
+                        b.classList.add('text-[#73757d]', 'border-transparent');
+                    });
+                    btn.classList.remove('text-[#73757d]', 'border-transparent');
+                    btn.classList.add('text-[#85adff]', 'bg-[#161a21]/50', 'border-[#85adff]');
+
+                    items.forEach(item => {
+                        const itemSubject = item.getAttribute('data-subject');
+
+                        // Zorg ervoor dat verborgen items tijdens het filteren correct worden getoond/verborgen
+                        if (filterValue === 'all' || itemSubject === filterValue) {
+                            if (!item.classList.contains('hidden-assignment')) {
+                                item.style.display = 'flex';
+                            }
+                            // Als we specifiek filteren, toon alles van dat vak (negeer hidden-assignment limit)
+                            if (filterValue !== 'all') {
+                                item.style.display = 'flex';
+                            }
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                });
             });
+
+            // Toggle Assignments knop functionaliteit
+            const toggleBtn = document.getElementById('toggle-assignments-btn');
+            if (toggleBtn) {
+                let isExpanded = false;
+                toggleBtn.addEventListener('click', () => {
+                    const hiddenItems = document.querySelectorAll('.hidden-assignment');
+                    isExpanded = !isExpanded;
+
+                    hiddenItems.forEach(item => {
+                        if (isExpanded) {
+                            item.classList.remove('hidden');
+                            item.style.display = 'flex';
+                        } else {
+                            item.classList.add('hidden');
+                            item.style.display = 'none';
+                        }
+                    });
+
+                    toggleBtn.innerText = isExpanded ? 'Verberg extra assignments' : `Bekijk alle assignments (${document.querySelectorAll('.assignment-card').length})`;
+                });
+            }
         });
     </script>
 </body>
