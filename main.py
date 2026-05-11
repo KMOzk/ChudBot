@@ -90,6 +90,18 @@ def clean_event_title(title):
     return clean_name or "(Geen onderwerp)"
 
 
+def get_embed_color(subject):
+    s = subject.upper()
+    if s == "PROG":
+        return 0xe74c3c  # Red
+    if s == "CSC":
+        return 0x3498db  # Blue
+    if s == "MOD":
+        return 0x9b59b6  # Purple
+    if s == "BIM":
+        return 0x2ecc71  # Green
+    return 0x95a5a6  # Gray
+
 def get_color_for_subject(subject, color_map):
     if not subject:
         return COLORS['white']
@@ -97,7 +109,12 @@ def get_color_for_subject(subject, color_map):
 
     if s == "PROG":
         return COLORS['red']
-
+    if s == "CSC":
+        return COLORS['blue']
+    if s == "MOD":
+        return COLORS['magenta']
+    if s == "BIM":
+        return COLORS['green']
     if s == "OVERIG":
         return COLORS['white']
 
@@ -223,7 +240,7 @@ def fetch_calendar_events(calendar_configs, start_time=None, end_time=None, max_
 
 
 def format_events_for_discord(events, title, days=1, now=None):
-    """Formats unified events into a list of Discord-ready messages (ANSI)."""
+    """Formats unified events into a list of Discord-ready messages using ANSI for color."""
     if not now:
         now = datetime.datetime.now().astimezone()
         
@@ -237,21 +254,28 @@ def format_events_for_discord(events, title, days=1, now=None):
     for ev in events:
         if "ZELFSTANDIG WERKEN" in ev['summary'].upper():
             continue
-        
         total_points += ev['points']
         subject_groups[ev['subject']].append(ev)
 
-    lines = []
-    sorted_subjects = sorted(subject_groups.keys(), key=lambda s: (0 if s.upper() == 'PROG' else 1, s.lower()))
+    # Core subjects that represent main lessons
+    CORE_SUBJECTS = ['PROG', 'CSC', 'MOD', 'BIM']
+    
+    # Sort subjects: Core lessons first, then others (tasks/exercises), both alphabetically
+    sorted_subjects = sorted(subject_groups.keys(), key=lambda s: (
+        0 if s.upper() in CORE_SUBJECTS else 1, 
+        s.upper()
+    ))
 
+    lines = []
     for i, subj in enumerate(sorted_subjects):
         color = get_color_for_subject(subj, color_map)
         subj_points = sum(ev['points'] for ev in subject_groups[subj])
-        subj_point_str = f" {COLORS['yellow']}[Points: {subj_points}]{COLORS['reset']}" if subj_points > 0 else ""
+        subj_point_str = f" \033[1;33m[🏆 {subj_points} pts]\033[0m" if subj_points > 0 else ""
 
         if i > 0:
-            lines.append(f"{COLORS['white']}------------------------------------{COLORS['reset']}")
-        lines.append(f"{COLORS['bold_white']}# {subj.upper()}{subj_point_str}{COLORS['reset']}")
+            lines.append("\033[1;30m" + "─" * 40 + "\033[0m")
+        
+        lines.append(f"\033[1;37m# {subj.upper()}{subj_point_str}\033[0m")
 
         for ev in subject_groups[subj]:
             start_dt = ev['start_dt']
@@ -261,21 +285,20 @@ def format_events_for_discord(events, title, days=1, now=None):
             days_left_str = ""
             if points > 0:
                 delta_days = (start_dt - now.replace(tzinfo=datetime.timezone.utc)).days
-                days_left_str = f" (Nog {delta_days}d)" if delta_days >= 0 else " (Verlopen)"
+                days_left_str = f" \033[0;32m(Nog {delta_days}d)\033[0m" if delta_days >= 0 else " \033[0;31m(Verlopen)\033[0m"
 
-            point_str = f" {COLORS['yellow']}[Points: {points}]{COLORS['reset']}{days_left_str}" if points > 0 else ""
+            point_str = f" \033[1;33m[{points} pts]\033[0m{days_left_str}" if points > 0 else ""
             date_prefix = ""
             if days > 1:
                 days_nl = ["MA", "DI", "WO", "DO", "VR", "ZA", "ZO"]
                 day_str = days_nl[start_dt.weekday()]
-                date_prefix = f"({start_dt.strftime('%d-%m')} {day_str}) "
+                date_prefix = f"\033[1;36m({start_dt.strftime('%d-%m')} {day_str})\033[0m "
 
             time_str = start_dt.strftime('%H:%M') if ev['start_dt'].hour or ev['start_dt'].minute else "Hele dag"
-            lines.append(f"{color}- {date_prefix}{time_str}: {clean_title}{point_str}{COLORS['reset']}")
+            lines.append(f"{color}• {date_prefix}{time_str}: {clean_title}{point_str}\033[0m")
 
     messages = []
     current_chunk = f"{title}\n```ansi\n"
-
     for line in lines:
         if len(current_chunk) + len(line) + 10 > DISCORD_MESSAGE_LIMIT:
             current_chunk += "```"
@@ -286,12 +309,7 @@ def format_events_for_discord(events, title, days=1, now=None):
 
     current_chunk += "```"
     if total_points > 0:
-        footer = f"\n🏆 **Totaal aantal punten: {total_points}**"
-        if len(current_chunk) + len(footer) > DISCORD_MESSAGE_LIMIT:
-            messages.append(current_chunk)
-            current_chunk = footer
-        else:
-            current_chunk += footer
+        current_chunk += f"\n🏆 **Totaal aantal punten: {total_points}**"
     messages.append(current_chunk)
     
     return messages
@@ -526,26 +544,24 @@ class ChudBot(commands.Bot):
                 day_name = days_nl[ev['start_dt'].weekday()]
                 date_str = f"{ev['start_dt'].strftime('%d-%m')} {day_name}"
 
-                box_width = 50
-                clean_summary = ev['summary'][:box_width - 15]
-
-                message = (
-                    "```ansi\n"
-                    f"\033[1;37m╔{'═' * box_width}╗\033[0m\n"
-                    f"\033[1;37m║\033[2;33m  🏆 VOLGENDE OPDRACHT MET PUNTEN{' ' * (box_width - 31)}\033[1;37m║\033[0m\n"
-                    f"\033[1;37m╠{'═' * box_width}╣\033[0m\n"
-                    f"\033[1;37m║\033[2;36m  Onderwerp:  \033[0m{clean_summary:<{box_width - 13}} \033[1;37m║\033[0m\n"
-                    f"\033[1;37m║\033[2;36m  Datum:      \033[0m{date_str:<{box_width - 13}} \033[1;37m║\033[0m\n"
-                    f"\033[1;37m║\033[2;33m  Waarde:     \033[0m{str(ev['points']) + ' pts':<{box_width - 13}} \033[1;37m║\033[0m\n"
-                    f"\033[1;37m║\033[2;32m  Status:     \033[0m{days_str:<{box_width - 13}} \033[1;37m║\033[0m\n"
-                    f"\033[1;37m╚{'═' * box_width}╝\033[0m\n"
-                    "```\n"
-                    "🌐 **Web Dashboard:** http://localhost:5000"
+                embed = discord.Embed(
+                    title="🏆 VOLGENDE OPDRACHT MET PUNTEN",
+                    description=f"**{ev['clean_title']}**",
+                    color=0xf1c40f
                 )
+                embed.add_field(name="Datum", value=f"`{date_str}`", inline=True)
+                embed.add_field(name="Waarde", value=f"`{ev['points']} pts`", inline=True)
+                embed.add_field(name="Status", value=f"`{days_str}`", inline=True)
+                
+                if ev['location']:
+                    embed.add_field(name="Locatie", value=f"`{ev['location']}`", inline=False)
+                
+                embed.set_footer(text="🌐 Web Dashboard: http://localhost:5000")
+
                 for guild in self.guilds:
                     channel = discord.utils.get(guild.text_channels, name='chud-bot')
                     if channel:
-                        await channel.send(message)
+                        await channel.send(embed=embed)
                 return
 
     @tasks.loop(hours=24)
@@ -662,20 +678,20 @@ class ChudBot(commands.Bot):
 
         for i in range(5):
             if i in weekly_tasks:
-                if lines: lines.append(f"{COLORS['white']}------------------------------------{COLORS['reset']}")
-                lines.append(f"{COLORS['bold_white']}# {week_labels[i]}{COLORS['reset']}")
+                if lines: lines.append("\033[1;30m" + "─" * 40 + "\033[0m")
+                lines.append(f"\033[1;37m# {week_labels[i]}\033[0m")
                 sorted_tasks = sorted(weekly_tasks[i], key=lambda x: x['date'])
                 for task in sorted_tasks:
                     color = get_color_for_subject(task['subj'], color_map)
 
                     days_nl = ["MA", "DI", "WO", "DO", "VR", "ZA", "ZO"]
                     day_str = days_nl[task['date'].weekday()]
-                    date_str = f"{task['date'].strftime('%d-%m')} {day_str}"
+                    date_str = f"\033[1;36m{task['date'].strftime('%d-%m')} {day_str}\033[0m"
 
                     delta_days = (task['date'] - now_date).days
-                    days_left_str = f" (Nog {delta_days}d)" if delta_days >= 0 else " (Verlopen)"
-                    point_str = f" {COLORS['yellow']}[Points: {task['points']}]{COLORS['reset']}{days_left_str}"
-                    lines.append(f"{color}• {date_str}: [{task['subj']}] {task['clean_title']}{point_str}{COLORS['reset']}")
+                    days_left_str = f" \033[0;32m(Nog {delta_days}d)\033[0m" if delta_days >= 0 else " \033[0;31m(Verlopen)\033[0m"
+                    point_str = f" \033[1;33m[🏆 {task['points']} pts]\033[0m{days_left_str}"
+                    lines.append(f"{color}• {date_str}: [{task['subj']}] {task['clean_title']}{point_str}\033[0m")
 
         title = "📋 **Taken met punten:**"
         messages = []
@@ -853,7 +869,7 @@ async def debug_hu_command(ctx):
         await ctx.send(f"❌ Fout bij debuggen: {e}\nKalender ID: `{cal_id}`")
 
 
-from flask import Flask, render_template
+from flask import Flask, render_template,Response
 import threading
 
 app = Flask(__name__)
@@ -922,6 +938,51 @@ def dashboard():
         logger.error(f"Web Dashboard Error: {e}")
         return f"⚠️ Fout bij ophalen data: {e}"
 
+
+@app.route('/api/oled')
+def oled_api():
+    """Endpoint specifiek voor de MicroPython OLED (Nu met datum en meerdere dagen)"""
+    now_dt = datetime.datetime.now().astimezone()
+    start_time = now_dt.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    # Haalt de agenda voor de komende 3 dagen op
+    end_time = (now_dt + datetime.timedelta(days=3)).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+    configs = [
+        {"id": CLASS_CALENDAR_ID, "type": "class"},
+        {"id": CALENDAR_ID, "type": "personal"}
+    ]
+
+    events = fetch_calendar_events(configs, start_time=start_time, end_time=end_time)
+
+    output = []
+    days_nl = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"]
+
+    for ev in events:
+        # Haal onnodige 'Zelfstandig werken' blokken weg
+        if "ZELFSTANDIG WERKEN" in ev['summary'].upper():
+            continue
+
+        time_str = ev['start_dt'].strftime('%H:%M') if ev['start_dt'].hour or ev['start_dt'].minute else "Dag"
+        subject_code = ev['subject'][:4].upper()
+
+        # NIEUW: Dag naam en datum (bijv. "Ma 13-04")
+        day_name = days_nl[ev['start_dt'].weekday()]
+        date_str = ev['start_dt'].strftime('%d-%m')
+
+        # Format: "Ma 13-04 [PROG] 10:30"
+        line = f"{day_name} {date_str} [{subject_code}] {time_str}"
+
+        if ev['points'] > 0:
+            line += f" ({ev['points']}p)"
+
+        output.append(line)
+
+    formatted_text = "\n".join(output)
+
+    if not formatted_text:
+        formatted_text = "Geen afspraken\nkomende dagen!"
+
+    return Response(formatted_text, mimetype='text/plain')
 
 def run_webserver():
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
